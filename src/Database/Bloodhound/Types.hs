@@ -625,13 +625,13 @@ newtype QueryString = QueryString Text deriving (Eq, Generic, Show)
 {-| 'FieldName' is used all over the place wherever a specific field within
      a document needs to be specified, usually in 'Query's or 'Filter's.
 -}
-newtype FieldName = FieldName Text deriving (Eq, Show)
+newtype FieldName = FieldName Text deriving (Eq, Show, Generic)
 
 
 {-| 'Script' is often used in place of 'FieldName' to specify more
 complex ways of extracting a value from a document.
 -}
-newtype Script = Script { scriptText :: Text } deriving (Eq, Show)
+newtype Script = Script { scriptText :: Text } deriving (Eq, Show, Generic)
 
 {-| 'CacheName' is used in 'RegexpFilter' for describing the
     'CacheKey' keyed caching behavior.
@@ -737,7 +737,7 @@ unpackId :: DocId -> Text
 unpackId (DocId docId) = docId
 
 type TrackSortScores = Bool
-newtype From = From Int deriving (Eq, Show, ToJSON)
+newtype From = From Int deriving (Eq, Show, ToJSON, Generic)
 newtype Size = Size Int deriving (Eq, Show, ToJSON)
 
 data Search = Search { queryBody       :: Maybe Query
@@ -751,7 +751,8 @@ data Search = Search { queryBody       :: Maybe Query
                      , size            :: Size
                      , searchType      :: SearchType
                      , fields          :: Maybe [FieldName]
-                     , source          :: Maybe Source } deriving (Eq, Show)
+                     , source          :: Maybe Source
+                     } deriving (Eq, Show, Generic)
 
 data SearchType = SearchTypeQueryThenFetch
                 | SearchTypeDfsQueryThenFetch
@@ -979,7 +980,7 @@ data MoreLikeThisQuery =
   , moreLikeThisBoostTerms      :: Maybe BoostTerms
   , moreLikeThisBoost           :: Maybe Boost
   , moreLikeThisAnalyzer        :: Maybe Analyzer
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data IndicesQuery =
   IndicesQuery
