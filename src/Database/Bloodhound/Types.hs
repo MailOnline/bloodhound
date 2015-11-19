@@ -46,6 +46,7 @@ module Database.Bloodhound.Types
        , mkTermsScriptAggregation
        , mkDateHistogram
        , mkDocVersion
+       , mkDoc
        , docVersionNumber
        , toMissing
        , toTerms
@@ -115,6 +116,7 @@ module Database.Bloodhound.Types
        , Filter(..)
        , Seminearring(..)
        , BoolMatch(..)
+       , Doc(..)
        , Term(..)
        , GeoPoint(..)
        , GeoBoundingBoxConstraint(..)
@@ -1173,7 +1175,7 @@ data MoreLikeThisFieldQuery =
 
 data MoreLikeThisQuery =
   MoreLikeThisQuery
-  { moreLikeThisText            :: Text
+  { moreLikeThisQuery           :: Either [Doc] Text
   , moreLikeThisFields          :: Maybe (NonEmpty FieldName)
     -- default 0.3 (30%)
   , moreLikeThisPercentMatch    :: Maybe PercentMatch
@@ -1444,6 +1446,16 @@ data Term = Term { termField :: Text
 data BoolMatch = MustMatch    Term  Cache
                | MustNotMatch Term  Cache
                | ShouldMatch [Term] Cache deriving (Eq, Read, Show, Generic, Typeable)
+
+data Doc =
+    Doc { docId     :: DocId
+        , docType   :: Maybe TypeName
+        , docIndex  :: Maybe IndexName
+        , docFields :: Maybe [FieldName]
+        } deriving (Eq, Read, Show, Generic)
+
+mkDoc :: DocId -> Doc
+mkDoc id_ = Doc id_ Nothing Nothing Nothing
 
 -- "memory" or "indexed"
 data GeoFilterType = GeoFilterMemory
@@ -2510,11 +2522,11 @@ instance FromJSON MoreLikeThisFieldQuery where
           -- optionalNE = maybe (pure Nothing) (fmap Just . parseNEJSON)
 
 instance ToJSON MoreLikeThisQuery where
-  toJSON (MoreLikeThisQuery text fields percent
+  toJSON (MoreLikeThisQuery query fields percent
           mtf mqt stopwords mindf maxdf
           minwl maxwl boostTerms boost analyzer) =
     omitNulls base
-    where base = [ "like_text" .= text
+    where base = [ either ("docs" .=) ("like_text" .=) query
                  , "fields" .= fields
                  , "percent_terms_to_match" .= percent
                  , "min_term_freq" .= mtf
@@ -3551,6 +3563,21 @@ instance FromJSON BoolMatch where
                   mustMatch t = MustMatch t <$> o .:? "_cache" .!= defaultCache
                   mustNotMatch t = MustNotMatch t <$> o .:? "_cache" .!= defaultCache
                   shouldMatch t = ShouldMatch t <$> o .:? "_cache" .!= defaultCache
+
+instance FromJSON Doc where
+    parseJSON (Object v) = Doc <$>
+                           v .:  "_id"    <*>
+                           v .:? "_type"  <*>
+                           v .:? "_index" <*>
+                           v .:? "fields"
+    parseJSON _ = empty
+
+instance ToJSON Doc where
+    toJSON (Doc id_ type_ index_ fields) =
+      omitNulls [ "_id" .= id_
+                , "_type" .= type_
+                , "_index" .= index_
+                , "fields" .= fields ]
 
 instance (FromJSON a) => FromJSON (SearchResult a) where
   parseJSON (Object v) = SearchResult <$>
