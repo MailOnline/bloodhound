@@ -237,6 +237,9 @@ module Database.Bloodhound.Types
        , CollectionMode(..)
        , TermOrder(..)
        , TermInclusion(..)
+       , SignificanceScore(..)
+       , BackgroundIsSuperset(..)
+       , IncludeNegatives(..)
 
        , Aggregation(..)
        , Aggregations
@@ -246,6 +249,7 @@ module Database.Bloodhound.Types
        , BucketAggregation(..)
        , TermsAggregation(..)
        , MissingAggregation(..)
+       , SignificantTermsAggregation(..)
        , ValueCountAggregation(..)
        , FilterAggregation(..)
        , DateHistogramAggregation(..)
@@ -1593,7 +1597,25 @@ data Interval = Year
               | Second
               | FractionalInterval Float TimeInterval deriving (Eq, Read, Show, Generic, Typeable)
 
+data SignificanceScore = JLH
+                       | MutualInformation (Maybe IncludeNegatives) (Maybe BackgroundIsSuperset)
+                       | ChiSquare (Maybe IncludeNegatives) (Maybe BackgroundIsSuperset)
+                       | GoogleNormalizedDistance (Maybe BackgroundIsSuperset)
+                       | Percentage
+                       | ScriptScore Script
+                       deriving (Eq, Read, Show, Generic)
+
+newtype BackgroundIsSuperset = BackgroundIsSuperset Bool deriving (Eq, Read, Show, Generic)
+newtype IncludeNegatives = IncludeNegatives Bool deriving (Eq, Read, Show, Generic)
+
+instance ToJSON BackgroundIsSuperset where
+  toJSON (BackgroundIsSuperset b) = object [ "background_is_superset" .= toJSON b ]
+
+instance ToJSON IncludeNegatives where
+  toJSON (IncludeNegatives b) = object [ "include_negatives" .= toJSON b ]
+
 data Aggregation = TermsAgg TermsAggregation
+                 | SigTermsAgg SignificantTermsAggregation
                  | DateHistogramAgg DateHistogramAggregation
                  | ValueCountAgg ValueCountAggregation
                  | FilterAgg FilterAggregation
@@ -1615,6 +1637,20 @@ data TermsAggregation = TermsAggregation { term              :: Either Text Text
                                          , termExecutionHint :: Maybe ExecutionHint
                                          , termAggs          :: Maybe Aggregations
                                     } deriving (Eq, Read, Show, Generic, Typeable)
+
+data SignificantTermsAggregation = SignificantTermsAggregation
+  { sigField            :: FieldName
+  , sigScore            :: SignificanceScore
+  , sigSize             :: Maybe Int
+  , sigShardSize        :: Maybe Int
+  , sigMinDocCount      :: Maybe Int
+  , sigShardMinDocCount :: Maybe Int
+  , sigBackgroundFilter :: Maybe Filter
+  , sigInclude          :: Maybe TermInclusion
+  , sigExclude          :: Maybe TermInclusion
+  , sigExecutionHint    :: Maybe ExecutionHint
+  , sigAggs             :: Maybe Aggregations
+  } deriving (Eq, Read, Show, Generic)
 
 data DateHistogramAggregation = DateHistogramAggregation { dateField      :: FieldName
                                                          , dateInterval   :: Interval
@@ -1775,6 +1811,31 @@ instance ToJSON Aggregation where
   toJSON (MissingAgg (MissingAggregation{..})) =
     object ["missing" .= object ["field" .= maField]]
 
+
+  toJSON (SigTermsAgg (SignificantTermsAggregation field score size shardSize minDocCount shardMinDocCount filter_ include exclude executionHint sigAggs)) =
+    omitNulls [ "significant_terms" .= omitNulls [ "field"               .= field
+                                                 , toJSON' score
+                                                 , "size"                .= size
+                                                 , "shard_size"          .= shardSize
+                                                 , "min_doc_count"       .= minDocCount
+                                                 , "shard_min_doc_count" .= shardMinDocCount
+                                                 , "background_filter"   .= filter_
+                                                 , "include"             .= include
+                                                 , "exclude"             .= exclude
+                                                 , "execution_hint"      .= executionHint
+                                                 ]
+              , "aggs" .= sigAggs ]
+    where
+      toJSON' s = case s of
+                    JLH -> "jlh" .= (Nothing :: Maybe ())
+                    MutualInformation in' bis ->
+                      "mutual_information" .= combineObjects (toJSON in') (toJSON bis)
+                    ChiSquare in' bis ->
+                      "chi_square" .= combineObjects (toJSON in') (toJSON bis)
+                    GoogleNormalizedDistance bis -> "gnd" .= maybe (object[]) toJSON bis
+                    Percentage -> "percentage" .= object []
+                    ScriptScore t -> "script_heuristic" .= omitNulls [ "script" .= scriptText t ]
+
 instance ToJSON DateRangeAggregation where
   toJSON DateRangeAggregation {..} =
     omitNulls [ "field" .= draField
@@ -1805,6 +1866,11 @@ instance ToJSON DateMathExpr where
           fmtU DMMinute = "m"
           fmtU DMSecond = "s"
 
+combineObjects :: Value -> Value -> Value
+combineObjects (Object o1) (Object o2) = Object $ o1 <> o2
+combineObjects o@(Object _) _ = o
+combineObjects _ o@(Object _) = o
+combineObjects _ _ = object []
 
 type AggregationResults = M.Map Text Value
 
