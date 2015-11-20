@@ -1,9 +1,10 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE UndecidableInstances   #-}
 
-module Database.Bloodhound.Range (range, (>.), (<.), (>=.), (<=.)) where
+module Database.Bloodhound.Range
+    ( IsRange(..), LT(..), LTE(..), GT(..), GTE(..)
+    ) where
 
 import           Data.Time
 
@@ -40,7 +41,7 @@ instance IsRange GreaterThan where
     range = RangeDoubleGt
 
 
-class LT l u r | l u -> r where
+class IsRange r => LT l u r | l u -> r where
     (<.) :: l -> u -> r
 
 instance LT () Double LessThan where
@@ -80,7 +81,7 @@ instance LT UTCTime LessThanEqD RangeValue where
     d <. g = RangeDateGtLte (GreaterThanD d) g
 
 
-class LTE l u r | l u -> r where
+class IsRange r => LTE l u r | l u -> r where
     (<=.) :: l -> u -> r
 
 instance LTE () Double LessThanEq where
@@ -120,15 +121,10 @@ instance LTE UTCTime LessThanD RangeValue where
     d <=. g = RangeDateGteLt (GreaterThanEqD d) g
 
 
-class GT u l r | u l -> r where
+class LT l u r => GT u l r | u l -> r where
     (>.) :: u -> l -> r
-
-instance LT a b r => GT b a r where
     x >. y = y <. x
 
-
-class GTE u l r | u l -> r where
+class LTE l u r => GTE u l r | u l -> r where
     (>=.) :: u -> l -> r
-
-instance LTE a b r => GTE b a r where
     x >=. y = y <=. x
