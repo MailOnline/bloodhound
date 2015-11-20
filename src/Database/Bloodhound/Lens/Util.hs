@@ -1,12 +1,10 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Database.Bloodhound.Lens.Util where
 
-import Control.Lens
-import Data.Char
-import Data.List
-import Data.Maybe
-import Language.Haskell.TH
+import           Control.Lens
+import           Data.Char
+import           Data.List
+import           Data.Maybe
+import           Language.Haskell.TH
 
 dropPrefixNamer :: String -> Name -> [Name] -> Name -> [DefName]
 dropPrefixNamer pref _ fields field = maybeToList $ do

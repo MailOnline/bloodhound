@@ -21,6 +21,7 @@ library
   exposed-modules:     Database.Bloodhound
                        Database.Bloodhound.Client
                        Database.Bloodhound.Lens
+                       Database.Bloodhound.Range
                        Database.Bloodhound.Types
                        Database.Bloodhound.Types.Class
   other-modules:       Database.Bloodhound.Lens.Util
