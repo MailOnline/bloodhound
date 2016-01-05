@@ -1414,6 +1414,7 @@ data RangeValue = RangeDateLte LessThanEqD
                 | RangeDoubleGteLte GreaterThanEq LessThanEq
                 | RangeDoubleGteLt GreaterThanEq LessThan
                 | RangeDoubleGtLte GreaterThan LessThanEq
+                | RangePair [Pair]
                 deriving (Eq, Show, Generic, Typeable)
 
 rangeValueToPair :: RangeValue -> [Pair]
@@ -1434,6 +1435,7 @@ rangeValueToPair rv = case rv of
   RangeDoubleGtLte (GreaterThan l) (LessThanEq g)    -> ["gt"  .= l, "lte" .= g]
   RangeDoubleGteLt (GreaterThanEq l) (LessThan g)    -> ["gte" .= l, "lt"  .= g]
   RangeDoubleGtLt (GreaterThan l) (LessThan g)       -> ["gt"  .= l, "lt"  .= g]
+  RangePair p                                        -> p
 
 data Term = Term { termField :: Text
                  , termValue :: Text } deriving (Eq, Show, Generic, Typeable)
