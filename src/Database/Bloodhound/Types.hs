@@ -1898,7 +1898,7 @@ instance ToJSON QueryStringQuery where
 
 instance ToJSON RangeQuery where
   toJSON (RangeQuery (FieldName fieldName) range boost) =
-    object [ fieldName .= conjoined ]
+    object [ fieldName .= object conjoined ]
     where conjoined = [ "boost" .= boost ] ++ (rangeValueToPair range)
 
 
