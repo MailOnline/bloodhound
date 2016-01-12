@@ -47,6 +47,7 @@ module Database.Bloodhound.Types
        , docVersionNumber
        , toTerms
        , toDateHistogram
+       , toSignificantTerms
        , omitNulls
        , BH(..)
        , runBH
@@ -233,6 +234,7 @@ module Database.Bloodhound.Types
 
        , TermsResult(..)
        , DateHistogramResult(..)
+       , SignificantTermsResult(..)
          ) where
 
 import           Control.Applicative
@@ -1573,12 +1575,22 @@ data DateHistogramResult = DateHistogramResult { dateKey           :: Int
                                                , dateDocCount      :: Int
                                                , dateHistogramAggs :: Maybe AggregationResults } deriving (Show)
 
+data SignificantTermsResult = SignificantTermsResult { sigKey        :: Text
+                                                     , sigDocCount   :: Int
+                                                     , sigTermsScore :: Double
+                                                     , sigBgCount    :: Int
+                                                     , sigTermsAggs  :: Maybe AggregationResults } deriving (Show)
+
 toTerms :: Text -> AggregationResults ->  Maybe (Bucket TermsResult)
 toTerms t a = M.lookup t a >>= deserialize
   where deserialize = parseMaybe parseJSON
 
 toDateHistogram :: Text -> AggregationResults -> Maybe (Bucket DateHistogramResult)
 toDateHistogram t a = M.lookup t a >>= deserialize
+  where deserialize = parseMaybe parseJSON
+
+toSignificantTerms :: Text -> AggregationResults -> Maybe (Bucket SignificantTermsResult)
+toSignificantTerms t a = M.lookup t a >>= deserialize
   where deserialize = parseMaybe parseJSON
 
 instance BucketAggregation TermsResult where
@@ -1590,6 +1602,11 @@ instance BucketAggregation DateHistogramResult where
   key = showText . dateKey
   docCount = dateDocCount
   aggs = dateHistogramAggs
+
+instance BucketAggregation SignificantTermsResult where
+  key = sigKey
+  docCount = sigDocCount
+  aggs = sigTermsAggs
 
 instance (FromJSON a, BucketAggregation a) => FromJSON (Bucket a) where
   parseJSON (Object v) = Bucket <$>
@@ -1608,6 +1625,15 @@ instance FromJSON DateHistogramResult where
                          v .:  "key"           <*>
                          v .:? "key_as_string" <*>
                          v .:  "doc_count"     <*>
+                         v .:? "aggregations"
+  parseJSON _ = mempty
+
+instance FromJSON SignificantTermsResult where
+  parseJSON (Object v) = SignificantTermsResult <$>
+                         v .:  "key"       <*>
+                         v .:  "doc_count" <*>
+                         v .:  "score"     <*>
+                         v .:  "bg_count"  <*>
                          v .:? "aggregations"
   parseJSON _ = mempty
 
