@@ -2206,7 +2206,13 @@ instance FromJSON SignificantTermsResult where
                          v .:  "doc_count" <*>
                          v .:  "score"     <*>
                          v .:  "bg_count"  <*>
-                         v .:? "aggregations"
+                         return (if M.null v' then Nothing else Just v')
+    where v' = HM.foldlWithKey'
+                 (\m k w ->
+                   if (k `elem` (T.words "key doc_count score bg_count"))
+                     then m
+                     else M.insert k w m)
+                 M.empty v
   parseJSON _ = mempty
 
 instance Semigroup Filter where
