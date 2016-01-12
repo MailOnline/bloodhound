@@ -246,7 +246,7 @@ import           Control.Monad.Writer
 import           Data.Aeson
 import           Data.Aeson.Types                (Pair, emptyObject, parseMaybe)
 import qualified Data.ByteString.Lazy.Char8      as L
-import qualified Data.HashMap.Strict             as HM (union)
+import qualified Data.HashMap.Strict             as HM (union, foldlWithKey')
 import           Data.List                       (foldl', nub)
 import           Data.List.NonEmpty              (NonEmpty (..), toList)
 import qualified Data.Map.Strict                 as M
@@ -1634,7 +1634,13 @@ instance FromJSON SignificantTermsResult where
                          v .:  "doc_count" <*>
                          v .:  "score"     <*>
                          v .:  "bg_count"  <*>
-                         v .:? "aggregations"
+                         return (if M.null v' then Nothing else Just v')
+    where v' = HM.foldlWithKey'
+                 (\m k w ->
+                   if (k `elem` (T.words "key doc_count score bg_count"))
+                     then m
+                     else M.insert k w m)
+                 M.empty v
   parseJSON _ = mempty
 
 instance Monoid Filter where
