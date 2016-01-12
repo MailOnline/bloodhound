@@ -52,6 +52,7 @@ module Database.V1.Bloodhound.Types
        , toMissing
        , toTerms
        , toDateHistogram
+       , toSignificantTerms
        , omitNulls
        , BH(..)
        , runBH
@@ -366,7 +367,9 @@ module Database.V1.Bloodhound.Types
 
        , EsUsername(..)
        , EsPassword(..)
-         ) where
+
+       , SignificantTermsResult(..)
+       ) where
 
 import           Control.Applicative                as A
 import           Control.Arrow                      (first)
@@ -2064,6 +2067,12 @@ data DateRangeResult = DateRangeResult { dateRangeKey          :: Text
                                        , dateRangeDocCount     :: Int
                                        , dateRangeAggs         :: Maybe AggregationResults } deriving (Read, Show, Eq, Generic, Typeable)
 
+data SignificantTermsResult = SignificantTermsResult { sigKey        :: Text
+                                                     , sigDocCount   :: Int
+                                                     , sigTermsScore :: Double
+                                                     , sigBgCount    :: Int
+                                                     , sigTermsAggs  :: Maybe AggregationResults } deriving (Show)
+
 toTerms :: Text -> AggregationResults ->  Maybe (Bucket TermsResult)
 toTerms = toAggResult
 
@@ -2075,6 +2084,10 @@ toMissing = toAggResult
 
 toAggResult :: (FromJSON a) => Text -> AggregationResults -> Maybe a
 toAggResult t a = M.lookup t a >>= deserialize
+  where deserialize = parseMaybe parseJSON
+
+toSignificantTerms :: Text -> AggregationResults -> Maybe (Bucket SignificantTermsResult)
+toSignificantTerms t a = M.lookup t a >>= deserialize
   where deserialize = parseMaybe parseJSON
 
 instance BucketAggregation TermsResult where
@@ -2092,7 +2105,12 @@ instance BucketAggregation DateRangeResult where
   docCount = dateRangeDocCount
   aggs = dateRangeAggs
 
-instance (FromJSON a) => FromJSON (Bucket a) where
+instance BucketAggregation SignificantTermsResult where
+  key = TextValue . sigKey
+  docCount = sigDocCount
+  aggs = sigTermsAggs
+
+instance (FromJSON a, BucketAggregation a) => FromJSON (Bucket a) where
   parseJSON (Object v) = Bucket <$>
                          v .: "buckets"
   parseJSON _ = mempty
@@ -2137,6 +2155,15 @@ instance FromJSON POSIXMS where
   parseJSON = withScientific "POSIXMS" (return . parse)
     where parse n = let n' = truncate n :: Integer
                     in POSIXMS (posixSecondsToUTCTime (fromInteger (n' `div` 1000)))
+
+instance FromJSON SignificantTermsResult where
+  parseJSON (Object v) = SignificantTermsResult <$>
+                         v .:  "key"       <*>
+                         v .:  "doc_count" <*>
+                         v .:  "score"     <*>
+                         v .:  "bg_count"  <*>
+                         v .:? "aggregations"
+  parseJSON _ = mempty
 
 instance Monoid Filter where
   mempty = IdentityFilter
