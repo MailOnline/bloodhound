@@ -1,1 +1,7 @@
-stack-7.10.yaml
+flags: {}
+packages:
+- '.'
+extra-deps:
+- doctest-prop-0.2.0.1
+- quickcheck-properties-0.1
+resolver: lts-5.0
