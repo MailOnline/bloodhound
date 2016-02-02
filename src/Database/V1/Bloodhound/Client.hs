@@ -44,6 +44,7 @@ module Database.V1.Bloodhound.Client
        -- ** Mapping
        , putMapping
        , deleteMapping
+       , getMapping
        -- ** Documents
        , indexDocument
        , updateDocument
@@ -769,6 +770,10 @@ deleteMapping (IndexName indexName)
   -- "_mapping" and mappingName below were originally transposed
   -- erroneously. The correct API call is: "/INDEX/_mapping/MAPPING_NAME"
   delete =<< joinPath [indexName, "_mapping", mappingName]
+
+getMapping :: MonadBH m => IndexName -> MappingName -> m Reply
+getMapping (IndexName indexName) (MappingName mappingName) =
+  get =<< joinPath [indexName, "_mapping", mappingName]
 
 versionCtlParams :: IndexDocumentSettings -> [(Text, Maybe Text)]
 versionCtlParams cfg =
