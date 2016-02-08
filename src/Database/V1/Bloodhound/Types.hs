@@ -489,11 +489,13 @@ data Status = Status { ok      :: Maybe Bool
 
 data IndexSettings =
   IndexSettings { indexShards   :: ShardCount
-                , indexReplicas :: ReplicaCount } deriving (Eq, Read, Show, Generic, Typeable)
+                , indexReplicas :: ReplicaCount
+                , indexAnalysis :: Maybe Value
+                } deriving (Eq, Read, Show, Generic, Typeable)
 
 {-| 'defaultIndexSettings' is an 'IndexSettings' with 3 shards and 2 replicas. -}
 defaultIndexSettings :: IndexSettings
-defaultIndexSettings =  IndexSettings (ShardCount 3) (ReplicaCount 2)
+defaultIndexSettings =  IndexSettings (ShardCount 3) (ReplicaCount 2) Nothing
 
 
 {-| 'IndexOptimizationSettings' is used to configure index optimization. See
@@ -3145,9 +3147,9 @@ instance FromJSON Status where
 
 
 instance ToJSON IndexSettings where
-  toJSON (IndexSettings s r) = object ["settings" .=
+  toJSON (IndexSettings s r a) = object ["settings" .=
                                  object ["index" .=
-                                   object ["number_of_shards" .= s, "number_of_replicas" .= r]
+                                   omitNulls ["number_of_shards" .= s, "number_of_replicas" .= r, "analysis" .= a]
                                  ]
                                ]
 
@@ -3157,6 +3159,7 @@ instance FromJSON IndexSettings where
                        i <- s .: "index"
                        IndexSettings <$> i .: "number_of_shards"
                                      <*> i .: "number_of_replicas"
+                                     <*> i .: "analysis"
 
 instance ToJSON UpdatableIndexSetting where
   toJSON (NumberOfReplicas x) = oPath ("index" :| ["number_of_replicas"]) x
